@@ -1,4 +1,8 @@
 #!/bin/bash
+# This is a sample for unattended install for SQL Server on Linux
+# Change sqlunattended.conf to control install params
+# Script will detect distribution Rhel/SUSE/Ubuntu  and add respostories accordingly
+# Supported Platforms: https://docs.microsoft.com/en-us/sql/linux/sql-server-linux-release-notes
 
 sqlinstall_rhel()
 {
@@ -205,6 +209,8 @@ exec (@sqlstr) "
 
 }
 
+
+
 mssqlconf_traceflags()
 {
 TRACEFLAGS=`echo $MSSQLCONF_TRACEFLAGS | sed -e 's/,/ /ig'` 
@@ -235,32 +241,43 @@ validate_params()
 	exit 1
  fi
  
- if [ ! -d $MSSQL_DATA_DIR ] && [ ! -z $MSSQL_DATA_DIR ]
+ if [ ! -z $MSSQL_DATA_DIR ]
  then
-        echo "User data  directory $MSSQL_DATA_DIR  does not exist"
-        exit 1
- else
-	 INSTALL_CMD+='MSSQL_DATA_DIR="'$MSSQL_DATA_DIR'" '
+	if [ ! -d $MSSQL_DATA_DIR ] && [ $MSSQL_DATA_DIR -ne "/var/opt/mssql/data" ]
+	then
+        	echo "User data  directory $MSSQL_DATA_DIR  does not exist"
+	        exit 1
+        else
+		INSTALL_CMD+='MSSQL_DATA_DIR="'$MSSQL_DATA_DIR'" '
+        fi
  fi
 
- if [ ! -d $MSSQL_LOG_DIR ] && [ ! -z $MSSQL_LOG_DIR ]
+ if [ ! -z $MSSQL_LOG_DIR ]
  then
-        echo "User log  directory $MSSQL_LOG_DIR  does not exist"
-        exit 1
- else
-	INSTALL_CMD+='MSSQL_LOG_DIR="'$MSSQL_LOG_DIR'" '
+	 if [ ! -d $MSSQL_LOG_DIR ] && [ $MSSQL_LOG_DIR -ne "/var/opt/mssql/data"  ]
+	 then
+        	echo "User log  directory $MSSQL_LOG_DIR  does not exist"
+	        exit 1
+	 else
+		INSTALL_CMD+='MSSQL_LOG_DIR="'$MSSQL_LOG_DIR'" '
+	 fi
  fi
 
- if [ ! -d $MSSQL_DUMP_DIR ] && [ ! -z $MSSQL_DUMP_DIR ]
+ if [ ! -z $MSSQL_DUMP_DIR ]
  then
-        echo "User log  directory $MSSQL_DUMP_DIR  does not exist"
-        exit 1
- else
-	INSTALL_CMD+='MSSQL_DUMP_DIR="'$MSSQL_DUMP_DIR'" '
+	 if [ ! -d $MSSQL_DUMP_DIR ] && [ $MSSQL_DUMP_DIR -ne "/var/opt/mssql/data" ]
+	 then
+        	echo "User log  directory $MSSQL_DUMP_DIR  does not exist"
+	        exit 1
+	 else
+		INSTALL_CMD+='MSSQL_DUMP_DIR="'$MSSQL_DUMP_DIR'" '
+	 fi
  fi
+
 
  #default Port
  SQL_PORT=1433
+ SQL_SERVER_NAME="localhost,$SQL_PORT"
  if [ ! -z $MSSQL_TCP_PORT ] && [ $MSSQL_TCP_PORT -ne 1433 ]
  then
 	INSTALL_CMD+='MSSQL_TCP_PORT='$MSSQL_TCP_PORT' '
@@ -367,4 +384,10 @@ esac
  #Restart SQL Server after all configs
  echo "Restarting SQL Server..."
  sudo systemctl restart mssql-server
+
+ if [ ! -z $POST_INSTALL_SQL_SCRIPT ]
+ then
+	echo "Running Post install SQL Script $POST_INSTALL_SQL_SCRIPT ..."
+	 /opt/mssql-tools/bin/sqlcmd -S$SQL_SERVER_NAME -Usa -P$MSSQL_SA_PASSWORD -i"$POST_INSTALL_SQL_SCRIPT" -o"PostInstallSQLScript.out"
+ fi
 

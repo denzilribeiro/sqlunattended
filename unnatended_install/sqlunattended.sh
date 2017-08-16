@@ -231,14 +231,21 @@ validate_params()
 
  if [ ! -d $SQL_TEMPDB_DATA_FOLDER ]
  then
-	echo "TempDB data directory $SQL_TEMPDB_DATA_FOLDER  does not exist"
-	exit 1
+	if [ ! -d $SQL_TEMPDB_DATA_FOLDER ] && [ $SQL_TEMPDB_DATA_FOLDER -ne "/var/opt/mssql/data" ]
+	then
+		echo "TempDB data directory $SQL_TEMPDB_DATA_FOLDER  does not exist"
+		exit 1
+	fi
  fi
 
  if [ ! -d $SQL_TEMPDB_LOG_FOLDER ]
  then
-        echo "Tempdb Log directory $SQL_TEMPDB_LOG_FOLDER  does not exist"
-	exit 1
+        if [ ! -d $SQL_TEMPDB_LOG_FOLDER ] && [ $SQL_TEMPDB_LOG_FOLDER -ne "/var/opt/mssql/data" ]
+
+        then
+        	echo "Tempdb Log directory $SQL_TEMPDB_LOG_FOLDER  does not exist"
+		exit 1
+        fi
  fi
  
  if [ ! -z $MSSQL_DATA_DIR ]

@@ -7,8 +7,11 @@
 sqlinstall_rhel()
 {
 echo Adding Microsoft repositories...
-sudo curl -o /etc/yum.repos.d/mssql-server.repo https://packages.microsoft.com/config/rhel/7/mssql-server.repo
-sudo curl -o /etc/yum.repos.d/msprod.repo https://packages.microsoft.com/config/rhel/7/prod.repo
+#sudo curl -o /etc/yum.repos.d/mssql-server.repo https://packages.microsoft.com/config/rhel/7/mssql-server.repo
+#sudo curl -o /etc/yum.repos.d/msprod.repo https://packages.microsoft.com/config/rhel/7/prod.repo
+
+sudo curl -o /etc/yum.repos.d/mssql-server.repo $RHEL_SQLSERVER_REPO
+sudo curl -o /etc/yum.repos.d/msprod.repo $RHEL_SQLTOOLS_REPO
 
 echo Running yum update -y...
 sudo yum update -y
@@ -45,6 +48,11 @@ then
     echo Installing SQL Server Full-Text Search...
     sudo yum install -y mssql-server-fts
 fi
+if [[ $INSTALL_HA == [Yy][eE][sS]  ]];
+then
+  echo Installing SQL Server HA..
+  sudo yum install -y mssql-server-ha
+fi
 
 # Configure firewall to allow TCP port 1433:
 echo Configuring firewall to allow traffic on port $SQL_PORT...
@@ -58,9 +66,13 @@ sudo firewall-cmd --reload
 sqlinstall_ubuntu()
 {
   sudo curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
-  repoargs="$(curl https://packages.microsoft.com/config/ubuntu/16.04/mssql-server.list)"
+#  repoargs="$(curl https://packages.microsoft.com/config/ubuntu/16.04/mssql-server.list)"
+  repoargs="$(curl $UBUNTU_SQLSERVER_REPO)"
+  sudo add-apt-repository -r "${repoargs}"
   sudo add-apt-repository "${repoargs}"
-  repoargs="$(curl https://packages.microsoft.com/config/ubuntu/16.04/prod.list)"
+# repoargs="$(curl https://packages.microsoft.com/config/ubuntu/16.04/prod.list)"
+  repoargs="$(curl $UBUNTU_SQLTOOLS_REPO)"
+  sudo add-apt-repository -r "${repoargs}"
   sudo add-apt-repository "${repoargs}"
 
   echo Running apt-get update -y...
@@ -99,6 +111,12 @@ sqlinstall_ubuntu()
     sudo apt-get install -y mssql-server-fts
   fi
 
+  if [[ $INSTALL_HA == [Yy][eE][sS]  ]];
+  then
+     echo Installing SQL Server HA..
+     sudo apt-get install -y mssql-server-ha
+  fi 
+
   # Configure firewall to allow TCP port 1433:
   echo Configuring UFW to allow traffic on port $SQL_PORT...
  
@@ -112,8 +130,11 @@ sqlinstall_ubuntu()
 sqlinstall_sles()
 {
 echo Adding Microsoft repositories...
-sudo zypper addrepo -fc https://packages.microsoft.com/config/sles/12/mssql-server.repo
-sudo zypper addrepo -fc https://packages.microsoft.com/config/sles/12/prod.repo 
+#sudo zypper addrepo -fc https://packages.microsoft.com/config/sles/12/mssql-server.repo
+#sudo zypper addrepo -fc https://packages.microsoft.com/config/sles/12/prod.repo 
+
+sudo zypper addrepo -fc $SLES_SQLSERVER_REPO
+sudo zypper addrepo -fc $SLES_SQLTOOLS_REPO
 sudo zypper --gpg-auto-import-keys refresh
 
 #Add the SLES v12 SP2 SDK to obtain libsss_nss_idmap0
@@ -148,6 +169,13 @@ then
   echo Installing SQL Server Full-Text Search...
     sudo zypper install -y mssql-server-fts
 fi
+if [[ $INSTALL_HA == [Yy][eE][sS]  ]];
+then
+  echo Installing SQL Server HA..
+    sudo zypper install -y mssql-server-ha
+fi
+
+
 # Configure firewall to allow TCP port 1433:
 echo Configuring SuSEfirewall2 to allow traffic on port $SQL_PORT...
 FIREWALL_CMD="sudo SuSEfirewall2 open INT TCP $SQL_PORT"
@@ -200,9 +228,9 @@ sql_auto_configure_tempdb()
 sql_cpu_affinity()
 {
  echo "Changing SQL Server affinity.."
- sqlstr="declare @numcpus int, @sqlstr nvarchar(4000);  \
-	select @numcpus=cpu_count from sys.dm_os_sys_info ; \
-	SET @sqlstr = 'ALTER SERVER CONFIGURATION SET PROCESS AFFINITY CPU = 0 TO ' + cast((@numcpus-1) as nvarchar(100)); \
+ sqlstr="declare @numanodes int, @sqlstr nvarchar(4000);  \
+	select @numanodes=count(*) from sys.dm_os_memory_nodes where memory_node_id <> 64 ; \
+	SET @sqlstr = 'ALTER SERVER CONFIGURATION SET PROCESS AFFINITY NUMANODE = 0 TO ' + cast((@numanodes-1) as nvarchar(100)); \
 exec (@sqlstr) "
  
  /opt/mssql-tools/bin/sqlcmd -S$SQL_SERVER_NAME -Usa -P$MSSQL_SA_PASSWORD -Q"$sqlstr" -o"sqlAffinity.out"
@@ -220,7 +248,7 @@ sudo /opt/mssql/bin/mssql-conf traceflag $TRACEFLAGS on
 
 validate_params()
 {
- if [ -z $MSSQL_SA_PASSWORD ]
+ if [[ -z "$MSSQL_SA_PASSWORD" ]];
  then
     echo Environment variable MSSQL_SA_PASSWORD must be set for unattended install
     exit 1
@@ -229,18 +257,18 @@ validate_params()
  fi
    INSTALL_CMD+='MSSQL_PID="'$MSSQL_PID'" '
 
- if [ ! -d $SQL_TEMPDB_DATA_FOLDER ]
+ if [[ ! -z "$SQL_TEMPDB_DATA_FOLDER" ]];
  then
-	if [ ! -d $SQL_TEMPDB_DATA_FOLDER ] && [ $SQL_TEMPDB_DATA_FOLDER -ne "/var/opt/mssql/data" ]
+	if [[ ! -d "$SQL_TEMPDB_DATA_FOLDER"  &&  "$SQL_TEMPDB_DATA_FOLDER" != "/var/opt/mssql/data" ]];
 	then
 		echo "TempDB data directory $SQL_TEMPDB_DATA_FOLDER  does not exist"
 		exit 1
 	fi
  fi
 
- if [ ! -d $SQL_TEMPDB_LOG_FOLDER ]
+ if [[ ! -z "$SQL_TEMPDB_LOG_FOLDER" ]];
  then
-        if [ ! -d $SQL_TEMPDB_LOG_FOLDER ] && [ $SQL_TEMPDB_LOG_FOLDER -ne "/var/opt/mssql/data" ]
+        if [[ ! -d "$SQL_TEMPDB_LOG_FOLDER"  &&  "$SQL_TEMPDB_LOG_FOLDER" != "/var/opt/mssql/data" ]];
 
         then
         	echo "Tempdb Log directory $SQL_TEMPDB_LOG_FOLDER  does not exist"
@@ -248,9 +276,9 @@ validate_params()
         fi
  fi
  
- if [ ! -z $MSSQL_DATA_DIR ]
+ if [[ ! -z "$MSSQL_DATA_DIR" ]];
  then
-	if [ ! -d $MSSQL_DATA_DIR ] && [ $MSSQL_DATA_DIR -ne "/var/opt/mssql/data" ]
+	if [[ ! -d "$MSSQL_DATA_DIR" &&  "$MSSQL_DATA_DIR" != "/var/opt/mssql/data" ]];
 	then
         	echo "User data  directory $MSSQL_DATA_DIR  does not exist"
 	        exit 1
@@ -259,9 +287,9 @@ validate_params()
         fi
  fi
 
- if [ ! -z $MSSQL_LOG_DIR ]
+ if [[ ! -z "$MSSQL_LOG_DIR" ]];
  then
-	 if [ ! -d $MSSQL_LOG_DIR ] && [ $MSSQL_LOG_DIR -ne "/var/opt/mssql/data"  ]
+	 if [[ ! -d "$MSSQL_LOG_DIR" &&  "$MSSQL_LOG_DIR" != "/var/opt/mssql/data" ]];
 	 then
         	echo "User log  directory $MSSQL_LOG_DIR  does not exist"
 	        exit 1
@@ -270,9 +298,9 @@ validate_params()
 	 fi
  fi
 
- if [ ! -z $MSSQL_DUMP_DIR ]
+ if [[ ! -z "$MSSQL_DUMP_DIR" ]];
  then
-	 if [ ! -d $MSSQL_DUMP_DIR ] && [ $MSSQL_DUMP_DIR -ne "/var/opt/mssql/data" ]
+	 if [[ ! -d "$MSSQL_DUMP_DIR" &&  "$MSSQL_DUMP_DIR" != "/var/opt/mssql/log" ]];
 	 then
         	echo "User log  directory $MSSQL_DUMP_DIR  does not exist"
 	        exit 1
@@ -285,22 +313,22 @@ validate_params()
  #default Port
  SQL_PORT=1433
  SQL_SERVER_NAME="localhost,$SQL_PORT"
- if [ ! -z $MSSQL_TCP_PORT ] && [ $MSSQL_TCP_PORT -ne 1433 ]
+ if [[ ! -z $MSSQL_TCP_PORT  &&  $MSSQL_TCP_PORT -ne 1433 ]]
  then
 	INSTALL_CMD+='MSSQL_TCP_PORT='$MSSQL_TCP_PORT' '
         SQL_SERVER_NAME="localhost,$MSSQL_TCP_PORT"
 	SQL_PORT=$MSSQL_TCP_PORT
  fi
 
- if [ ! -z $MSSQL_LCID ]
+ if [[ ! -z $MSSQL_LCID ]];
  then
         INSTALL_CMD+='MSSQL_LCID='$MSSQL_LCID' '
  fi
- if [ ! -z $MSSQL_COLLATION ]
+ if [[ ! -z $MSSQL_COLLATION ]];
  then
         INSTALL_CMD+='MSSQL_COLLATION="'$MSSQL_COLLATION'" '
  fi
- if [ ! -z $MSSQL_MEMORY_LIMIT_MB ]
+ if [[ ! -z $MSSQL_MEMORY_LIMIT_MB ]];
  then
         INSTALL_CMD+='MSSQL_MEMORY_LIMIT_MB='$MSSQL_MEMORY_LIMIT_MB' '
  fi
@@ -381,12 +409,30 @@ esac
 
  fi
 
+ # If HA is installed, have to enable it after install
+ if [[ $INSTALL_HA == [Yy][eE][sS]  ]];
+ then
+    sudo /opt/mssql/bin/mssql-conf set hadr.hadrenabled  1
+ fi
 
  if [ ! -z $MSSQLCONF_TRACEFLAGS ]
  then
 	echo "Configuring Trace flags.."
 	mssqlconf_traceflags
  fi
+
+# Add permissions to DATA/LOG directory if custom directory
+ if [[ ! -d "$MSSQL_DATA_DIR" &&  "$MSSQL_DATA_DIR" != "/var/opt/mssql/data" ]];
+ then
+    sudo  chown mssql:mssql $MSSQL_DATA_DIR
+ 
+ fi
+
+ if [[ ! -d "$MSSQL_LOG_DIR" &&  "$MSSQL_DATA_DIR" != "/var/opt/mssql/data" ]];
+ then
+    sudo  chown mssql:mssql $MSSQL_LOG_DIR
+ fi
+
 
  #Restart SQL Server after all configs
  echo "Restarting SQL Server..."

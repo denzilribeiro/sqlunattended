@@ -1,4 +1,0 @@
-Changed database context to 'master'.
-The file "tempdev" has been modified in the system catalog. The new path will be used the next time the database is started.
-The file "templog" has been modified in the system catalog. The new path will be used the next time the database is started.
-ALTER DATABASE [tempdb] ADD FILE ( NAME =N'tempdev1', FILENAME = N'/var/opt/mssql/data/tempdev1.ndf', SIZE =500MB , FILEGROWTH = 500MB);

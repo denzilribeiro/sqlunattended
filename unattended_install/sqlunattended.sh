@@ -52,6 +52,7 @@ fi
 if [[ $INSTALL_HA == [Yy][eE][sS]  ]];
 then
   echo Installing SQL Server HA..
+  sudo yum install -y pacemaker pcs fence-agents-all resource-agents
   sudo yum install -y mssql-server-ha
 fi
 
@@ -118,6 +119,7 @@ sqlinstall_ubuntu()
   if [[ $INSTALL_HA == [Yy][eE][sS]  ]];
   then
      echo Installing SQL Server HA..
+     sudo apt-get install -y pacemaker pcs fence-agents-all resource-agents
      sudo apt-get install -y mssql-server-ha
   fi 
 
@@ -176,7 +178,9 @@ then
 fi
 if [[ $INSTALL_HA == [Yy][eE][sS]  ]];
 then
-  echo Installing SQL Server HA..
+   echo Installing SQL Server HA..
+   echo "Please install the SUSE Linux High availability extension first "
+   echo "https://www.suse.com/documentation/sle-ha-12/singlehtml/install-quick/install-quick.html#sec.ha.inst.quick.installation"
     sudo zypper install -y mssql-server-ha
 fi
 
@@ -388,7 +392,7 @@ esac
 # Restart SQL Server after installing:
  echo "Restarting SQL Server..."
  sudo systemctl restart mssql-server
- sleep 5
+ sleep 10
 
  echo "Attempting to connect to SQL Server for Post install configurations..."
  sql_connect

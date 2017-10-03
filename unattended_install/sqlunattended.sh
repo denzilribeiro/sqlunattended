@@ -14,8 +14,6 @@ sudo rm -rf /etc/yum.repos.d/mssql-server.repo
 sudo curl -o /etc/yum.repos.d/mssql-server.repo $RHEL_SQLSERVER_REPO
 sudo curl -o /etc/yum.repos.d/msprod.repo $RHEL_SQLTOOLS_REPO
 
-echo Running yum update -y...
-sudo yum update -y mssql-server mssql-server-agent mssql-server-ha mssql-server-fts mssql-tools
 
 echo Installing SQL Server...
 sudo yum install -y mssql-server

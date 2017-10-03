@@ -7,14 +7,15 @@
 sqlinstall_rhel()
 {
 echo Adding Microsoft repositories...
-#sudo curl -o /etc/yum.repos.d/mssql-server.repo https://packages.microsoft.com/config/rhel/7/mssql-server.repo
-#sudo curl -o /etc/yum.repos.d/msprod.repo https://packages.microsoft.com/config/rhel/7/prod.repo
 
+#remove existing repo
+sudo rm -rf /etc/yum.repos.d/mssql-server.repo
+# Add Repo from config file
 sudo curl -o /etc/yum.repos.d/mssql-server.repo $RHEL_SQLSERVER_REPO
 sudo curl -o /etc/yum.repos.d/msprod.repo $RHEL_SQLTOOLS_REPO
 
 echo Running yum update -y...
-sudo yum update -y
+sudo yum update -y mssql-server mssql-server-agent mssql-server-ha mssql-server-fts mssql-tools
 
 echo Installing SQL Server...
 sudo yum install -y mssql-server
@@ -65,8 +66,11 @@ sudo firewall-cmd --reload
 
 sqlinstall_ubuntu()
 {
+# remove existing preview repo
+  sudo add-apt-repository -r 'deb [arch=amd64] https://packages.microsoft.com/ubuntu/16.04/mssql-server xenial main'
+
+# add Repo from config file
   sudo curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
-#  repoargs="$(curl https://packages.microsoft.com/config/ubuntu/16.04/mssql-server.list)"
   repoargs="$(curl $UBUNTU_SQLSERVER_REPO)"
   sudo add-apt-repository -r "${repoargs}"
   sudo add-apt-repository "${repoargs}"
@@ -76,7 +80,7 @@ sqlinstall_ubuntu()
   sudo add-apt-repository "${repoargs}"
 
   echo Running apt-get update -y...
-  sudo apt-get update -y
+  sudo apt-get update -y 
 
   echo Installing SQL Server...
   sudo apt-get install -y mssql-server
@@ -130,9 +134,10 @@ sqlinstall_ubuntu()
 sqlinstall_sles()
 {
 echo Adding Microsoft repositories...
-#sudo zypper addrepo -fc https://packages.microsoft.com/config/sles/12/mssql-server.repo
-#sudo zypper addrepo -fc https://packages.microsoft.com/config/sles/12/prod.repo 
 
+#remove existing repo 
+sudo zypper removerepo 'packages-microsoft-com-mssql-server'
+#add repo from Config file.
 sudo zypper addrepo -fc $SLES_SQLSERVER_REPO
 sudo zypper addrepo -fc $SLES_SQLTOOLS_REPO
 sudo zypper --gpg-auto-import-keys refresh
@@ -358,11 +363,6 @@ SQL_TEMPDB_DATA_FILE_SIZE_MB=${SQL_TEMPDB_DATA_FILE_SIZE_MB:-"1024"}
 SQL_TEMPDB_LOG_FILE_SIZE_MB=${SQL_TEMPDB_LOG_FILE_SIZE_MB:-"1024"}
 ##############################################################
 
-if [ -f /opt/mssql/bin/mssqlservr ]
-then
-   echo SQL Server Binaries already exist
-   exit 1
-fi
 
 echo "Validating configuration file parameters..."
 validate_params

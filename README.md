@@ -1,3 +1,4 @@
+
 # SQL Server on Linux Unattended install
 
 For SQL Server on Linux, there are several capabilities that are useful in unattended install scenarios:
@@ -16,12 +17,15 @@ Here is a sample script that would further ease the unattended install process, 
 Steps to run the script:
 
 1.	Download the script:   
+
       git clone https://github.com/denzilribeiro/sqlunattended.git
       
 2.	To prevent sudo password prompts during unattended install:
+
         sudo chown root:root sqlunattended.sh
         sudo chmod 4755 sqlunattended.sh
 3.	Modify the sqlunattended.conf file to specify the configuration options required, including what components to install, data/log directories, etc. Here is a snippet from the sqlunattended.conf:
+
         #Components to install
         INSTALL_SQL_AGENT=YES
         INSTALL_FULLTEXT=NO

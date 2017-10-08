@@ -320,7 +320,7 @@ validate_params()
  #default Port
  SQL_PORT=1433
  SQL_SERVER_NAME="localhost,$SQL_PORT"
- if [[ ! -z $MSSQL_TCP_PORT  &&  $MSSQL_TCP_PORT -ne 1433 ]]
+ if [[ ! -z $MSSQL_TCP_PORT  &&  $MSSQL_TCP_PORT != 1433 ]]
  then
 	INSTALL_CMD+='MSSQL_TCP_PORT='$MSSQL_TCP_PORT' '
         SQL_SERVER_NAME="localhost,$MSSQL_TCP_PORT"
